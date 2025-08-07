@@ -68,7 +68,7 @@ def build_dirs(base: str | Path, mode: str) -> dict[str, Path]:
         dict with "data_dir" pointing to the created path.
     """
     root = Path(base).expanduser().resolve()
-    results_root = _ensure_dir(root, "../../QuantEye/results")
+    results_root = _ensure_dir(root, ".results")
     mode_root = _ensure_dir(results_root, mode)
     return {
         "data_dir": _ensure_dir(mode_root, "data")
@@ -1182,7 +1182,7 @@ def run_stage2(
     from pathlib import Path
 
     # Step 1: 定义路径（如果你在 Mac 上）
-    output_path = Path("~/Desktop/QuantEye/results/macro_sentiment_index.csv").expanduser()
+    output_path = Path("./results/macro_sentiment_index.csv").expanduser()
 
     # Step 2: 保存 DataFrame 到 CSV
     df_market_sent_idx.to_csv(output_path, index=False)
