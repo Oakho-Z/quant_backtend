@@ -129,7 +129,7 @@ def long_task(task_id, gamma, top_n):
         recs, backtest_df, metrics = runner.run_optimization_analysis(
             Path("./results/station2/station2_feature_matrix.csv")
         )
-
+        print("task is completed")
         task_results[task_id] = {
             "status": "completed",
             "message": "Pipeline completed successfully."
