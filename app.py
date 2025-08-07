@@ -9,9 +9,14 @@ import random
 from datetime import datetime, timedelta
 import pandas as pd
 from multiprocessing import Process, Queue
+from flask import Flask, request, jsonify
+from multiprocessing import Process
+from pathlib import Path
+import uuid
 app = Flask(__name__)
 CORS(app)
 
+task_results = {}  # 用于保存任务状态和结果（可以换成 Redis）s
 def generate_random(min_val, max_val):
     return random.uniform(min_val, max_val)
 
@@ -94,35 +99,46 @@ def performance_tab_chart_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def long_task(gamma, top_n, result_queue):
-    run_stage1(
-        api_key=None,
-        mode='crypto',
-        base_dir=Path("./results"),
-        pages=[1, 2],
-        top_limit=100,
-        history_limit=600,
-        currency="USD"
-    )
+def long_task(task_id, gamma, top_n):
+    try:
+        # 更新任务状态为 running
+        task_results[task_id] = {"status": "running"}
 
-    run_stage2(
-        market_csv=Path("./results/crypto/data/stage_1_crypto_data.csv"),
-        news_csv=Path("./results/news/data/stage_1_news_raw.csv"),
-        out_dir=Path("./results/station2")
-    )
+        # 执行三阶段任务
+        run_stage1(
+            api_key=None,
+            mode='crypto',
+            base_dir=Path("./results"),
+            pages=[1, 2],
+            top_limit=100,
+            history_limit=600,
+            currency="USD"
+        )
 
-    config = Config()
-    config.GAMMA = gamma
-    config.TOP_N = top_n
+        run_stage2(
+            market_csv=Path("./results/crypto/data/stage_1_crypto_data.csv"),
+            news_csv=Path("./results/news/data/stage_1_news_raw.csv"),
+            out_dir=Path("./results/station2")
+        )
 
-    runner = OptimizationRunner(config)
-    recs, backtest_df, metrics = runner.run_optimization_analysis(
-        Path("./results/station2/station2_feature_matrix.csv")
-    )
+        config = Config()
+        config.GAMMA = gamma
+        config.TOP_N = top_n
 
-    # 可有可无，主线程不再取数据了
-    result_queue.put("done")
+        runner = OptimizationRunner(config)
+        recs, backtest_df, metrics = runner.run_optimization_analysis(
+            Path("./results/station2/station2_feature_matrix.csv")
+        )
 
+        task_results[task_id] = {
+            "status": "completed",
+            "message": "Pipeline completed successfully."
+        }
+    except Exception as e:
+        task_results[task_id] = {
+            "status": "failed",
+            "error": str(e)
+        }
 
 @app.route("/run_pipeline", methods=["POST"])
 def run_pipeline():
@@ -130,12 +146,20 @@ def run_pipeline():
     gamma = data.get("gamma", 1.5)
     top_n = data.get("top_n", 8)
 
-    result_queue = Queue()
-    p = Process(target=long_task, args=(gamma, top_n, result_queue))
-    p.start()
-    p.join()
+    task_id = str(uuid.uuid4())
+    task_results[task_id] = {"status": "queued"}
 
-    return jsonify({"status": "success"})
+    p = Process(target=long_task, args=(task_id, gamma, top_n))
+    p.start()
+
+    return jsonify({"task_id": task_id}), 202  # 202 Accepted
+
+@app.route("/pipeline_status/<task_id>", methods=["GET"])
+def pipeline_status(task_id):
+    result = task_results.get(task_id)
+    if result is None:
+        return jsonify({"status": "not_found"}), 404
+    return jsonify(result)
 
 @app.route("/chart_data", methods=["GET"])
 def chart_data():
