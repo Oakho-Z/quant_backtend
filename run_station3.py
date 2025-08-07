@@ -316,7 +316,7 @@ class SeparatedVisualization:
         """Plot a sentiment gauge based on market_sentiment_index from Stage2 data"""
         try:
             # Define portable path
-            macro_path = Path("~/Desktop/QuantEye/results/macro_sentiment_index.csv").expanduser()
+            macro_path = Path("./results/macro_sentiment_index.csv").expanduser()
 
             # Read macro sentiment data
             df = pd.read_csv(macro_path)
@@ -324,7 +324,7 @@ class SeparatedVisualization:
 
             # Save the last 7 days of data
             recent_macro = df[df["date"] >= df["date"].max() - timedelta(days=6)]
-            save_path = Path("~/Desktop/QuantEye/results/macro_sentiment_last7days.csv").expanduser()
+            save_path = Path("./results/macro_sentiment_last7days.csv").expanduser()
             recent_macro.to_csv(save_path, index=False)
 
             print(f"✅ Saved: last 7-day macro sentiment to {save_path.resolve()}")
