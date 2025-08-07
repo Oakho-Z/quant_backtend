@@ -16,7 +16,11 @@ import uuid
 app = Flask(__name__)
 CORS(app)
 
-task_results = {}  # 用于保存任务状态和结果（可以换成 Redis）s
+from multiprocessing import Process, Manager
+
+manager = Manager()
+task_results = manager.dict()  # 用于保存任务状态和结果（可以换成 Redis）
+
 def generate_random(min_val, max_val):
     return random.uniform(min_val, max_val)
 
@@ -129,7 +133,7 @@ def long_task(task_id, gamma, top_n):
         recs, backtest_df, metrics = runner.run_optimization_analysis(
             Path("./results/station2/station2_feature_matrix.csv")
         )
-        print("task is completed")
+        print("task is completed", task_id)
         task_results[task_id] = {
             "status": "completed",
             "message": "Pipeline completed successfully."
